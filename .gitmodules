@@ -1,0 +1,3 @@
+[submodule "bayesian-ab-django"]
+	path = bayesian-ab-django
+	url = https://gitlab.com/royhung_/bayesian-ab-django.git
