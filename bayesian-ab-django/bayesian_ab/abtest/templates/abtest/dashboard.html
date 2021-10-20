@@ -1,0 +1,228 @@
+{% extends 'abtest/base.html' %}
+{% block header %}
+<header style="padding:0">
+    <h1>Bayesian A/B Testing Dashboard</h1>
+    <hr>
+</header>
+{% endblock %}
+{% block content %}
+<h1>Campaign: {{ campaign.name }}</h1>
+<div id="canvas">
+    <h2>Beta Posterior Probability Distribution of Variants</h2>
+</div>
+<div class="center" id="legend">
+</div>
+<p>
+    Last Update: {{ last_update }} | <a href="/dashboard">Refresh</a>
+</p>
+<hr>
+<div class="center">
+<h3><strong>
+    <a href="/">Click Here</a> to visit the test page to add to impressions / conversions
+</strong><br>
+</h3>
+</div>
+<div class= "center">
+<p>Thompson Sampling algorithm used to determine variant assigned</p>
+</div>
+<hr>
+<h3>Simulate Page Visits</h3>
+<p>Instead of visiting the page yourself and clicking for conversions, you may simulate users visiting the page by clicking the buttons below.</p>
+<p>
+The "true" conversion rate for each variant is already fixed and simulating enough page visits will cause the distribution means to converge to the predetermined conversion rates.</p>
+<div class="center">
+    <button id="sim-5">Simulate <br> +5 Page Visits</button> &nbsp;&nbsp;
+    <button id="sim-10">Simulate <br> +10 Page Visits</button>
+</div>
+<br>
+<hr>
+<h3>Summary Of A/B/C Test Results</h3>
+<div class="center">
+    <table>
+        <tr>
+            <td colspan="4" style="text-align: left; font-weight:800">
+            Summary of Impressions/Conversions
+            </td>
+        </tr>
+
+        <tr>
+            <td><strong>Variant</strong></td>
+            <td><strong>Impressions</strong></td>
+            <td><strong>Conversions</strong></td>
+            <td><strong>Conversion Rate</strong> </td>
+        </tr>
+        {% for variant in variant_vals %}
+        <tr>
+            <td>{{ variant.code }}</td>
+            <td>{{ variant.impressions }}</td>
+            <td>{{ variant.conversions }}</td>
+            <td>{{ variant.conversion_rate|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+    </table>    
+</div>
+<br>
+<div class="center" >
+    <table style="max-width:400px">
+        <tr>
+            <td colspan="4" style="text-align: left; font-weight:800">
+            Probability of conversion rate for Variant X (row) greater than
+            Variant Y (col) 
+            </td>
+        </tr>
+        <tr>
+            <td><strong>P(X>Y)</strong></td>
+            <td><strong>A</strong></td>
+            <td><strong>B</strong></td>
+            <td><strong>C</strong></td>
+        </tr>
+        <tr>
+            <td><strong>A</strong></td>
+            <td>-</td>
+            <td>{{ h_ab|floatformat:3 }}</td>
+            <td>{{ h_ac|floatformat:3 }}</td>
+        </tr>
+        <tr>
+            <td><strong>B</strong></td>
+            <td>{{ h_ba|floatformat:3 }}</td>
+            <td>-</td>
+            <td>{{ h_bc|floatformat:3 }}</td>
+        </tr>
+        <tr>
+            <td><strong>C</strong></td>
+            <td>{{ h_ca|floatformat:3 }}</td>
+            <td>{{ h_cb|floatformat:3 }}</td>
+            <td>-</td>
+        </tr>
+    </table>    
+</div>
+
+<hr>
+<h3>Reset</h3>
+<p>To reset impressions and conversions for all variants, <a href="/clear_stats">click here</a></p>
+
+{{ variant_vals|json_script:"dataset" }}
+
+<script>
+var x_vals = {{ x_vals }}
+var dataset = JSON.parse(document.getElementById('dataset').textContent);
+
+var margin = {
+        top: 10,
+        right: 20,
+        bottom: 30,
+        left: 25
+    },
+    width = document.getElementById("canvas").offsetWidth - margin.left - margin.right,
+    height = 300 - margin.top - margin.bottom;
+
+var x = d3.scaleLinear().range([0, width]);
+var y = d3.scaleLinear().range([height, 0]);
+var xAxis = d3.axisBottom(x);
+var yAxis = d3.axisLeft(y);
+var line = d3.line()
+    .x(function(d) {
+        return x(d[0]);
+    })
+    .y(function(d) {
+
+        return y(d[1]);
+    });
+var svg = d3.select("#canvas").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+x.domain(d3.extent(x_vals, function(d) {
+    return d;
+}));
+y.domain([0, {{ max_y }} ]);
+
+svg.append("g")
+    .attr("class", "x-axis")
+    .attr("transform", "translate(0," + height + ")")
+    .call(xAxis);
+
+svg.append("g")
+    .attr("class", "y-axis")
+    .call(yAxis);
+
+var color = [
+    '#66c2a5',
+    '#fc8d62',
+    '#8da0cb',
+    '#e78ac3',
+    '#a6d854',
+]
+
+dataset.forEach(function(d, i) {
+    svg.append("path")
+        .attr("class", "line")
+        .attr("id", d.code)
+        .attr("d", line(d.xy))
+        .style("stroke", color[i])
+    legend = document.getElementById('legend');
+    legend.innerHTML += '<div><span class="emdash" style="color:'+d.color+'">&#8213;&nbsp;</span>' + d.code+ '&nbsp;&nbsp;</div>';
+});
+
+svg.append("text")
+    .attr("id", "N")
+    .attr("y", 5)
+    .attr("x", 0.85*width)
+    .style("font-size", "1.2rem")
+    .attr('text-anchor', 'middle')
+    .text("N={{ N }}");
+
+document.getElementById("sim-5").addEventListener("click", function(){
+    this.disabled=true;
+    simPageVisits(
+        campaign_code="{{ campaign.code }}",
+        n=5,
+        conversion_rates = {
+            'A':0.45,
+            'B':0.75,
+            'C':0.67
+        },
+        algo='thompson'
+    );
+});
+document.getElementById("sim-10").addEventListener("click", function(){
+    this.disabled=true;
+    simPageVisits(
+        campaign_code="{{ campaign.code }}",
+        n=10,
+        conversion_rates = {
+            'A':0.45,
+            'B':0.75,
+            'C':0.67
+        },
+        algo='thompson'
+    );
+});
+function simPageVisits(campaign_code, n, conversion_rates, algo) {
+  
+  // AJAX API POST request to simulate n number of page visits
+
+  conversion_rates = typeof conversion_rates !== 'undefined' ? conversion_rates : {};
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function () {
+    if (this.readyState === 4 && this.status === 200) {
+      var response = JSON.parse(this.response);
+      window.location.href = "/dashboard";
+    }
+  }
+  xhttp.open('POST', '/api/sim_page_views', true);
+  xhttp.setRequestHeader('Content-Type', 'application/json');
+  xhttp.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+  xhttp.send(
+    JSON.stringify({
+      campaign_code : campaign_code,
+      n : n,
+      conversion_rates : conversion_rates,
+      algo : algo,
+    })
+  );
+}
+</script>
+{% endblock %}
