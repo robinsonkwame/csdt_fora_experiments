@@ -15,7 +15,7 @@ To run the application yourself, first make sure Docker is installed. In the cur
 ```bash
 docker-compose up
 ```
-This will build and start the docker containers for the Django application, Nginx, and Postgresql. Once launched, you can access application at http://127.0.0.1:1337. This version has been tweaked for CSDT applications and serves an uniform set of conditions to help with quasi-experiments.
+This will build and start the docker containers for the Django application, Nginx, and Postgresql. Once launched, you can access application at http://127.0.0.1:8000. This version has been tweaked for CSDT applications and serves an uniform set of conditions to help with quasi-experiments.
 
 #### Built-in URL Paths
 The project comes with a few url paths and views for demonstration purposes.
