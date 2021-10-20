@@ -15,8 +15,8 @@ def homepage(request):
         request=request,
         campaign=campaign,
         default_template='abtest/homepage.html',
-        sticky_session=False,
-        algo='thompson',
+        sticky_session=True,
+        algo='uniform',
     )
     template = assigned_variant['html_template']
     context = {

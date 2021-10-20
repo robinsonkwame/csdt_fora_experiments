@@ -2,19 +2,25 @@ version: '3'
 
 services:
   db:
+    environment:
+      - "POSTGRES_HOST_AUTH_METHOD=trust"
+    container_name: db
     image: postgres
     expose: 
      - "5432"
   web:
+    container_name: web
     build: .
     command: gunicorn bayesian_ab.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - .:/app
     ports:
       - "8000:8000"
+    restart: always
     depends_on:
       - db
   nginx:
+    container_name: nginx
     image: nginx:1.13
     ports:
       - 1337:80
